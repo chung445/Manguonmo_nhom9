@@ -54,7 +54,7 @@
 - **Database**: MySQL 5.7+ hoặc MariaDB
 - **XAMPP** (khuyến nghị cho Windows)
 - **MySQL Workbench** (để quản lý database)
-## 3.2 Hình ảnh web đã tạo
+## 3.2 Sử dụng hệ thống
  <p align="center">
         <img src="images/dash1.jpg" />
         <img src="images/dash2.jpg" />
