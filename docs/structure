@@ -1,0 +1,93 @@
+EnglishCenter
+│   index.php                    # Trang chính (dashboard)
+│   README.md                    # Tài liệu mô tả project
+│
+├── css/                         # CSS cho toàn bộ giao diện
+│   ├── footer.css
+│   ├── login.css
+│   └── style.css                # Style chung cho hệ thống
+│
+├── docs/                        # Tài liệu, logo, hình ảnh
+│   └── logo/
+│       ├── english_center_logo.png
+│       └── partner_logo.png
+│
+├── functions/                   # Các hàm xử lý nghiệp vụ
+│   ├── auth.php                 # Xác thực & phân quyền user
+│   ├── db_connection.php        # Kết nối database
+│   ├── student_functions.php    # Hàm xử lý học viên
+│   ├── teacher_functions.php    # Hàm xử lý giảng viên
+│   ├── course_functions.php     # Hàm xử lý khóa học
+│   ├── enrollment_functions.php # Hàm xử lý ghi danh
+│   ├── schedule_functions.php   # Hàm xử lý lịch học
+│   ├── attendance_functions.php # Hàm xử lý điểm danh
+│   ├── payment_functions.php    # Hàm xử lý thanh toán
+│   └── report_functions.php     # Hàm xử lý báo cáo
+│
+├── handle/                      # Xử lý khi submit form
+│   ├── login_process.php        # Xử lý đăng nhập
+│   ├── logout_process.php       # Xử lý đăng xuất
+│   ├── student_process.php      # CRUD học viên
+│   ├── teacher_process.php      # CRUD giảng viên
+│   ├── course_process.php       # CRUD khóa học
+│   ├── enrollment_process.php   # CRUD ghi danh
+│   ├── schedule_process.php     # CRUD lịch học
+│   ├── attendance_process.php   # CRUD điểm danh
+│   ├── payment_process.php      # CRUD thanh toán
+│   └── report_process.php       # Xử lý tạo báo cáo
+│
+├── images/                      # Hình ảnh sử dụng cho giao diện
+│
+└── views/                       # Giao diện hiển thị (View)
+    ├── dashboard.php            # Trang dashboard tổng quan
+    │
+    ├── students/                # Quản lý học viên
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   └── delete.php
+    │
+    ├── teachers/                # Quản lý giảng viên
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   └── delete.php
+    │
+    ├── courses/                 # Quản lý khóa học
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   └── delete.php
+    │
+    ├── enrollments/             # Quản lý ghi danh
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   ├── delete.php
+    │   └── manage.php           # Quản lý ghi danh tổng hợp
+    │
+    ├── schedules/               # Quản lý lịch học
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   └── delete.php
+    │
+    ├── attendance/              # Quản lý điểm danh
+    │   ├── list.php
+    │   ├── mark.php
+    │   ├── edit.php
+    │   └── report.php
+    │
+    ├── payments/                # Quản lý thanh toán
+    │   ├── list.php
+    │   ├── add.php
+    │   ├── edit.php
+    │   └── delete.php
+    │
+    ├── reports/                 # Báo cáo thống kê
+    │   ├── revenue.php
+    │   ├── attendance.php
+    │   └── course_progress.php
+    │
+    ├── menu.php                 # Menu sidebar
+    └── header.php               # Header hiển thị trên các trang
