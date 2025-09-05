@@ -56,9 +56,10 @@
 - **MySQL Workbench** (để quản lý database)
 ## 3.2 Hình ảnh web đã tạo
  <p align="center">
-        <img src="images/aiotlab_logo.png" alt="AIoTLab Logo" width="170"/>
-        <img src="images/fitdnu_logo.png" alt="AIoTLab Logo" width="180"/>
-        <img src="images/dnu_logo.png" alt="DaiNam University Logo" width="200"/>
+        <img src="images/dash1.jpg" />
+        <img src="images/dash2.jpg" />
+        <img src="images/dash3.jpg" />
+     
     </p>
 
 ## ⚙️ 4. Cài đặt
