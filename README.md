@@ -59,6 +59,7 @@
         <img src="images/dash1.jpg" />
         <img src="images/dash2.jpg" />
         <img src="images/dash3.jpg" />
+        <img src="images/dash4.jpg" />
      
     </p>
 
@@ -68,7 +69,7 @@
 
 #### 4.1.1. Tải project.
 ```
-git clone https://gitlab.com/anhlta/odoo-fitdnu.git
+https://github.com/chung445/Manguonmo_nhom9.git
 ```
 #### 4.1.2. Cài đặt các thư viện cần thiết
 Người sử dụng thực thi các lệnh sau đề cài đặt các thư viện cần thiết
