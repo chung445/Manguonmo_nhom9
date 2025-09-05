@@ -22,6 +22,27 @@
 
 ## 📖 1. Giới thiệu
 Đề tài được lựa chọn xuất phát từ nhu cầu thực tiễn trong việc quản lý tại các trung tâm tiếng Anh, nơi có khối lượng lớn thông tin cần được tổ chức và theo dõi như học viên, giảng viên, khóa học, lịch học và quá trình ghi danh. Việc quản lý thủ công dễ dẫn đến sai sót, tốn thời gian và làm giảm hiệu quả vận hành. Do đó, xây dựng một hệ thống quản lý số hóa, tích hợp và an toàn sẽ không chỉ hỗ trợ admin trong việc thêm, sửa, xóa dữ liệu mà còn giúp theo dõi tiến độ học tập, lịch giảng dạy một cách khoa học, đồng thời mang lại trải nghiệm tốt hơn cho học viên, phụ huynh và giáo viên. Đây cũng là giải pháp có tính mở rộng, phù hợp với xu hướng ứng dụng công nghệ trong giáo dục hiện nay.
+Quản lý học viên (CRUD: thêm, sửa, xóa, xem danh sách) → liên quan bảng students
+
+Quản lý giảng viên (CRUD) → liên quan bảng teachers
+
+Quản lý khóa học (CRUD) → liên quan bảng courses
+
+Quản lý lịch học (CRUD) → liên quan bảng schedules
+
+Quản lý ghi danh (CRUD) → liên quan bảng enrollments
+
+Quản lý điểm danh → liên quan bảng attendance
+
+Quản lý thanh toán → liên quan bảng payments
+
+Quản lý báo cáo thống kê → liên quan bảng report_logs (tổng hợp từ nhiều bảng khác: payments, attendance, enrollments)
+
+Đăng nhập/Đăng xuất → liên quan bảng users
+
+Phân quyền người dùng → dựa trên cột role trong bảng users (admin, teacher, student)
+
+Dashboard tổng quan → hiển thị thống kê: số lượng học viên, số khóa học, doanh thu, tỉ lệ điểm danh...
 
 ## 🔧 2. Các công nghệ được sử dụng
 <div align="center">
