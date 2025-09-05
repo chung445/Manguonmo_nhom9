@@ -45,11 +45,22 @@
 
 </div>
 
-## 🚀 3. Các project đã thực hiện dựa trên Platform
+## ⚙️ 3. Cài đặt và Sử dụng
 
-Một số project sinh viên đã thực hiện:
-- #### [Khoá 15](./docs/projects/K15/README.md)
-- #### [Khoá 16]() (Coming soon)
+### 3.1. Yêu cầu hệ thống
+
+- **Web Server**: Apache/Nginx
+- **PHP**: Version 7.4 trở lên
+- **Database**: MySQL 5.7+ hoặc MariaDB
+- **XAMPP** (khuyến nghị cho Windows)
+- **MySQL Workbench** (để quản lý database)
+## 3.2 Hình ảnh web đã tạo
+ <p align="center">
+        <img src="images/aiotlab_logo.png" alt="AIoTLab Logo" width="170"/>
+        <img src="images/fitdnu_logo.png" alt="AIoTLab Logo" width="180"/>
+        <img src="images/dnu_logo.png" alt="DaiNam University Logo" width="200"/>
+    </p>
+
 ## ⚙️ 4. Cài đặt
 
 ### 4.1. Cài đặt công cụ, môi trường và các thư viện cần thiết
