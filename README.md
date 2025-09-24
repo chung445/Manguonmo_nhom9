@@ -121,8 +121,8 @@ Mở XAMPP Control Panel, Start Apache và MySQL
 Truy cập MySQL WorkBench
 Tạo database:
 ```bash
-CREATE DATABASE english_center2;
-USE english_center2;
+CREATE DATABASE english_center;
+USE english_center;
 
 CREATE TABLE students (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -131,6 +131,7 @@ CREATE TABLE students (
     email VARCHAR(100),
     phone VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+...
 );
 ```
 
@@ -143,7 +144,7 @@ Mở file config.php (hoặc .env) trong project, chỉnh thông tin DB:
         $servername = "localhost";
         $username = "root";
         $password = "";
-        $dbname = "qenglish_center";
+        $dbname = "english_center";
         $port = 3306;
 $conn = mysqli_connect($servername, $username, $password, $dbname, $port);
         if (!$conn) {
@@ -167,5 +168,6 @@ Sau khi đăng nhập Admin có thể:
 
 Thêm sửa xóa sinh viên, giảng viên, khóa học, lịch học
 
+Hiển thị Dashboard cho quản trị viên
 
 Quản lý phân quyền theo cấp
