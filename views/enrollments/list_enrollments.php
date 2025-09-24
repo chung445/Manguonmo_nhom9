@@ -446,7 +446,7 @@ if ($is_admin) {
                     <?php endif; ?>
                 </h2>
                 <?php if ($is_admin): ?>
-                    <a href="../add_enrollments" class="btn btn-add">
+                    <a href="../enrollments/add_enrollments.php" class="btn btn-add">
                         <i class="fas fa-plus"></i> Thêm khóa học
                     </a>
                 <?php endif; ?>
