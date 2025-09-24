@@ -94,60 +94,80 @@ Dashboard tổng quan → hiển thị thống kê: số lượng học viên, s
      
     </p>
 
+" />
+
 ## ⚙️ 4. Cài đặt
 
 ### 4.1. Cài đặt công cụ, môi trường và các thư viện cần thiết
 
-#### 4.1.1. Tải project.
-```
-https://github.com/chung445/Manguonmo_nhom9.git
-```
-#### 4.1.2. Cài đặt các thư viện cần thiết
-Người sử dụng thực thi các lệnh sau đề cài đặt các thư viện cần thiết
+- Tải và cài đặt **XAMPP**  
+  👉 https://www.apachefriends.org/download.html  
+  (Khuyến nghị bản XAMPP với PHP 8.x)
 
-```
-sudo apt-get install libxml2-dev libxslt-dev libldap2-dev libsasl2-dev libssl-dev python3.10-distutils python3.10-dev build-essential libssl-dev libffi-dev zlib1g-dev python3.10-venv libpq-dev
-```
-#### 4.1.3. Khởi tạo môi trường ảo.
-- Khởi tạo môi trường ảo
-```
-python3.10 -m venv ./venv
-```
-- Thay đổi trình thông dịch sang môi trường ảo
-```
-source venv/bin/activate
-```
-- Chạy requirements.txt để cài đặt tiếp các thư viện được yêu cầu
-```
-pip3 install -r requirements.txt
-```
-### 4.2. Setup database
+- Cài đặt **Visual Studio Code** và các extension:
+  - PHP Intelephense  
+  - MySQL  
+  - Prettier – Code Formatter  
+### 4.2. Tải project
+Clone project về thư mục `htdocs` của XAMPP (ví dụ ổ C):
 
-Khởi tạo database trên docker bằng việc thực thi file dockercompose.yml.
+```bash
+cd C:\xampp\htdocs
+https://github.com/tyanzuq2811/BTL_Quan_ly_doan_vien.git
+Truy cập project qua đường dẫn:
+👉 https://github.com/chung445/Manguonmo_nhom9/index.php
 ```
-sudo docker-compose up -d
-```
-### 4.3. Setup tham số chạy cho hệ thống
-Tạo tệp **odoo.conf** có nội dung như sau:
-```
-[options]
-addons_path = addons
-db_host = localhost
-db_password = odoo
-db_user = odoo
-db_port = 5431
-xmlrpc_port = 8069
-```
-Có thể kế thừa từ file **odoo.conf.template**
-### 4.4. Chạy hệ thống và cài đặt các ứng dụng cần thiết
-Lệnh chạy
-```
-python3 odoo-bin.py -c odoo.conf -u all
-```
-Người sử dụng truy cập theo đường dẫn _http://localhost:8069/_ để đăng nhập vào hệ thống.
+### 4.3. Setup database
+Mở XAMPP Control Panel, Start Apache và MySQL
 
-## 📝 5. License
+Truy cập MySQL WorkBench
+Tạo database:
+```bash
+CREATE DATABASE english_center2;
+USE english_center2;
 
-© 2024 AIoTLab, Faculty of Information Technology, DaiNam University. All rights reserved.
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    dob DATE,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
----
+### 4.4. Setup tham số kết nối
+Mở file config.php (hoặc .env) trong project, chỉnh thông tin DB:
+```bash
+
+<?php
+    function getDbConnection() {
+        $servername = "localhost";
+        $username = "root";
+        $password = "";
+        $dbname = "qenglish_center";
+        $port = 3306;
+$conn = mysqli_connect($servername, $username, $password, $dbname, $port);
+        if (!$conn) {
+            die("Kết nối database thất bại: " . mysqli_connect_error());
+        }
+        mysqli_set_charset($conn, "utf8");
+        return $conn;
+    }
+?>
+```
+### 4.5. Chạy hệ thống
+Mở XAMPP Control Panel → Start Apache và MySQL
+
+Truy cập hệ thống:
+👉 http://localhost/index.php
+
+### 4.6. Đăng nhập lần đầu
+Hệ thống có thể cấp tài khoản admin 
+
+Sau khi đăng nhập Admin có thể:
+
+Thêm sửa xóa sinh viên, giảng viên, khóa học, lịch học
+
+
+Quản lý phân quyền theo cấp
