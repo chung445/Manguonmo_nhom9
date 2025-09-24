@@ -9,8 +9,20 @@ if (!isset($_SESSION['user_id'])) {
 
 $conn = getDbConnection();
 
+// Phân quyền
+$is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$is_student = isset($_SESSION['role']) && $_SESSION['role'] === 'student';
+$is_teacher = isset($_SESSION['role']) && $_SESSION['role'] === 'teacher';
+
+// Kiểm tra thông báo thành công
+$success_message = '';
+if (isset($_SESSION['enrollment_success'])) {
+    $success_message = $_SESSION['enrollment_success'];
+    unset($_SESSION['enrollment_success']);
+}
+
 // Cấu hình phân trang
-$records_per_page = 8; // 8 cards per page for better layout
+$records_per_page = 8;
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $records_per_page;
 
@@ -20,18 +32,25 @@ $where_clause = '';
 $search_param = '';
 
 if (!empty($search)) {
-    $where_clause = "WHERE s.full_name LIKE ? OR c.course_name LIKE ? OR e.status LIKE ?";
+    $where_clause = "WHERE c.course_name LIKE ? OR c.description LIKE ?";
     $search_param = "%$search%";
 }
 
+// Nếu là student, chỉ hiển thị khóa học active
+if ($is_student) {
+    $where_clause = empty($where_clause) ? "WHERE c.status = 'active'" : $where_clause . " AND c.status = 'active'";
+}
+
 // Đếm tổng số bản ghi
-$count_sql = "SELECT COUNT(*) as total FROM enrollments e
-              JOIN students s ON e.student_id = s.id
-              JOIN courses c ON e.course_id = c.id
-              $where_clause";
+$count_sql = "SELECT COUNT(*) as total FROM courses c $where_clause";
 if (!empty($search)) {
     $count_stmt = $conn->prepare($count_sql);
-    $count_stmt->bind_param("sss", $search_param, $search_param, $search_param);
+    if ($is_student) {
+        // Nếu là student và có search, cần điều chỉnh bind_param
+        $count_stmt->bind_param("ss", $search_param, $search_param);
+    } else {
+        $count_stmt->bind_param("ss", $search_param, $search_param);
+    }
     $count_stmt->execute();
     $total_records = $count_stmt->get_result()->fetch_assoc()['total'];
     $count_stmt->close();
@@ -41,19 +60,21 @@ if (!empty($search)) {
 
 $total_pages = ceil($total_records / $records_per_page);
 
-// Lấy danh sách ghi danh với phân trang
-$sql = "SELECT e.id, s.full_name as student_name, c.course_name, c.photo, 
-               e.enrollment_date, e.status
-        FROM enrollments e
-        JOIN students s ON e.student_id = s.id
-        JOIN courses c ON e.course_id = c.id
+// Lấy danh sách khóa học với thông tin số học viên đã đăng ký
+$sql = "SELECT c.*, 
+               (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id AND e.status = 'active') as enrolled_count
+        FROM courses c 
         $where_clause
-        ORDER BY e.enrollment_date DESC
+        ORDER BY c.created_at DESC
         LIMIT ? OFFSET ?";
 
 if (!empty($search)) {
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssii", $search_param, $search_param, $search_param, $records_per_page, $offset);
+    if ($is_student) {
+        $stmt->bind_param("ssii", $search_param, $search_param, $records_per_page, $offset);
+    } else {
+        $stmt->bind_param("ssii", $search_param, $search_param, $records_per_page, $offset);
+    }
 } else {
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ii", $records_per_page, $offset);
@@ -61,55 +82,67 @@ if (!empty($search)) {
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Phân quyền
-$is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-$is_teacher = isset($_SESSION['role']) && $_SESSION['role'] === 'teacher';
-$can_manage = $is_admin; // Chỉ admin mới có thể thêm/sửa/xóa
-$can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem chi tiết
+// Nếu là student, lấy danh sách khóa học đã đăng ký
+$enrolled_courses = [];
+if ($is_student) {
+    $enrolled_sql = "SELECT course_id FROM enrollments WHERE student_id = ? AND status IN ('active', 'pending')";
+    $enrolled_stmt = $conn->prepare($enrolled_sql);
+    $enrolled_stmt->bind_param("i", $_SESSION['user_id']);
+    $enrolled_stmt->execute();
+    $enrolled_result = $enrolled_stmt->get_result();
+    while ($row = $enrolled_result->fetch_assoc()) {
+        $enrolled_courses[] = $row['course_id'];
+    }
+    $enrolled_stmt->close();
+}
+
+// Lấy danh sách students để admin có thể thêm vào khóa học
+$students = [];
+if ($is_admin) {
+    $students_sql = "SELECT id, full_name, email FROM students WHERE status = 'active' ORDER BY full_name";
+    $students_result = $conn->query($students_sql);
+    if ($students_result) {
+        while ($student = $students_result->fetch_assoc()) {
+            $students[] = $student;
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Danh sách ghi danh - English Center</title>
+    <title>Danh sách khóa học - English Center</title>
     <link rel="stylesheet" href="../../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* Giới hạn chiều rộng theo header */
-        .enrollment-list {
-            display: flex;
-            flex-direction: column;
+        .courses-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
             margin: 20px auto;
-            width: 100%;
-            max-width: 1400px; /* bằng với header */
+            max-width: 1400px;
         }
 
-        /* Card */
-        .enrollment-card {
-            display: flex;
-            align-items: center;
+        .course-card {
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
             overflow: hidden;
             transition: transform .2s, box-shadow .2s;
             border: 1px solid #e5e7eb;
-            padding: 10px;
+            position: relative;
         }
 
-        .enrollment-card:hover {
+        .course-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 5px 14px rgba(0,0,0,0.15);
         }
 
-        /* Ảnh khóa học */
         .course-photo {
-            width: 200px;
-            height: 140px;
-            flex-shrink: 0;
+            width: 100%;
+            height: 200px;
             overflow: hidden;
-            border-radius: 8px;
             background: #f3f4f6;
         }
 
@@ -119,44 +152,55 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
             object-fit: cover;
         }
 
-        /* Thông tin */
-        .enrollment-info {
-            padding: 15px 25px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .course-info {
+            padding: 20px;
         }
 
-        .student-name {
-            margin: 0;
-            font-size: 1.4rem; /* chữ to hơn */
+        .course-title {
+            margin: 0 0 10px 0;
+            font-size: 1.3rem;
             font-weight: 700;
             color: #111827;
+            line-height: 1.3;
         }
 
-        .enrollment-detail {
-            margin: 0;
-            color: #4b5563;
-            font-size: 1.05rem; /* chữ chi tiết to hơn */
+        .course-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .course-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .course-detail {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #4b5563;
         }
 
-        .enrollment-detail i {
-            width: 18px;
+        .course-detail i {
+            width: 16px;
             color: #6b7280;
         }
 
-        /* Badge trạng thái */
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.95rem;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
             font-weight: 600;
         }
 
@@ -164,38 +208,212 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
             background: #dcfce7;
             color: #166534;
         }
-        
+
         .status-inactive {
             background: #fef2f2;
             color: #991b1b;
         }
-        
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .enrollment-actions {
+
+        .course-actions {
             padding: 15px 20px;
+            border-top: 1px solid #e5e7eb;
             display: flex;
-            flex-direction: column;
             gap: 8px;
-            border-left: 1px solid #e5e7eb;
+            flex-wrap: wrap;
         }
-        
-        .no-enrollments {
+
+        .enrolled-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        /* Modal cho thêm sinh viên */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: #fff;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #111827;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 5px;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .student-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+        }
+
+        .student-checkbox:hover {
+            background: #f3f4f6;
+        }
+
+        .student-checkbox input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .student-info {
+            flex: 1;
+        }
+
+        .student-name {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .student-email {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .no-courses {
             text-align: center;
             padding: 60px 20px;
             color: #6b7280;
             background: #f9fafb;
             border-radius: 10px;
             border: 2px dashed #d1d5db;
+            grid-column: 1 / -1;
         }
-        
-        .no-enrollments i {
+
+        .no-courses i {
             font-size: 3rem;
             margin-bottom: 15px;
             color: #9ca3af;
+        }
+
+        /* Đảm bảo button không bị disable */
+        .btn.btn-primary {
+            background: #3b82f6 !important;
+            color: white !important;
+            border: none !important;
+            cursor: pointer !important;
+            opacity: 1 !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: #2563eb !important;
+        }
+
+        .btn.btn-primary:disabled {
+            background: #9ca3af !important;
+            cursor: not-allowed !important;
+        }
+        .btn-cancel {
+    background-color: #ef4444; /* đỏ */
+    color: #fff;              /* chữ trắng */
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-cancel:hover {
+    background-color: #dc2626; /* đỏ đậm hơn khi hover */
+}
+
+
+        /* Success message */
+        .success-message {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .success-message i {
+            color: #16a34a;
+            font-size: 1.2rem;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Auto hide after 5 seconds */
+        .success-message.auto-hide {
+            animation: slideDown 0.3s ease-out, fadeOut 0.3s ease-out 4.7s forwards;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
         }
     </style>
 </head>
@@ -204,28 +422,39 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
     <?php include __DIR__ . '/../menu.php'; ?>
 
     <div class="main-content">
+        <!-- Success Message -->
+        <?php if (!empty($success_message)): ?>
+        <div class="success-message auto-hide" id="successMessage">
+            <i class="fas fa-check-circle"></i>
+            <span><?= htmlspecialchars($success_message) ?></span>
+            <button onclick="hideSuccessMessage()" style="margin-left: auto; background: none; border: none; color: #166534; cursor: pointer; font-size: 1.2rem;">&times;</button>
+        </div>
+        <?php endif; ?>
+
         <!-- Header Section -->
         <div class="header-section">
             <div class="header-row">
                 <h2>
-                    <i class="fas fa-user-plus"></i>
-                    Quản lý ghi danh
-                    <?php if (!$can_manage): ?>
+                    <i class="fas fa-graduation-cap"></i>
+                    <?php if ($is_admin): ?>
+                        Quản lý ghi danh
+                    <?php else: ?>
+                        Danh sách khóa học
                         <span class="role-badge role-<?= $_SESSION['role'] ?>">
-                            <?= ucfirst($_SESSION['role']) ?> - Chỉ xem
+                            <?= ucfirst($_SESSION['role']) ?>
                         </span>
                     <?php endif; ?>
                 </h2>
-                <?php if ($can_manage): ?>
-                    <a href="add_enrollments.php" class="btn btn-add">
-                        <i class="fas fa-plus"></i> Thêm ghi danh
+                <?php if ($is_admin): ?>
+                    <a href="../add_enrollments" class="btn btn-add">
+                        <i class="fas fa-plus"></i> Thêm khóa học
                     </a>
                 <?php endif; ?>
             </div>
             <div class="stats-row">
                 <div class="stat-item">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>Tổng số: <?= $total_records ?> ghi danh</span>
+                    <i class="fas fa-list"></i>
+                    <span>Tổng số: <?= $total_records ?> khóa học</span>
                 </div>
                 <div class="stat-item">
                     <i class="fas fa-file-alt"></i>
@@ -247,7 +476,7 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
                     <input type="text" 
                            name="search" 
                            value="<?= htmlspecialchars($search) ?>"
-                           placeholder="Tìm theo tên học viên, khóa học hoặc trạng thái..." 
+                           placeholder="Tìm kiếm khóa học..." 
                            class="search-box">
                     <button type="submit" class="search-btn">
                         <i class="fas fa-search"></i>
@@ -267,74 +496,126 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
             </div>
         </div>
 
-        <!-- Enrollment Cards -->
-        <div class="enrollment-list">
+        <!-- Course Cards -->
+        <div class="courses-list">
             <?php
             if ($result && $result->num_rows > 0) {
                 while ($row = $result->fetch_assoc()) {
                     $photo = (!empty($row['photo']) && file_exists(__DIR__."/../../uploads/courses/".$row['photo']))
                         ? "../../uploads/courses/".$row['photo']
-                        : "https://via.placeholder.com/160x110?text=No+Image";
+                        : "https://via.placeholder.com/350x200?text=No+Image";
                     
-                    // Status styling
-                    $status_class = 'status-pending';
-                    $status_icon = 'fas fa-clock';
-                    switch(strtolower($row['status'])) {
-                        case 'active':
-                            $status_class = 'status-active';
-                            $status_icon = 'fas fa-check-circle';
-                            break;
-                        case 'inactive':
-                            $status_class = 'status-inactive';
-                            $status_icon = 'fas fa-times-circle';
-                            break;
-                    }
+                    $status_class = $row['status'] === 'active' ? 'status-active' : 'status-inactive';
+                    $is_enrolled = in_array($row['id'], $enrolled_courses);
                     
-                    echo "<div class='enrollment-card'>";
+                    echo "<div class='course-card'>";
+                    
+                    // Status badge
+                    echo "<div class='status-badge $status_class'>";
+                    echo ucfirst($row['status']);
+                    echo "</div>";
+                    
+                    // Course photo
                     echo "<div class='course-photo'>";
                     echo "<img src='$photo' alt='Ảnh khóa học'>";
                     echo "</div>";
                     
-                    echo "<div class='enrollment-info'>";
-                    echo "<h3 class='student-name'>" . htmlspecialchars($row['student_name']) . "</h3>";
-                    echo "<p class='enrollment-detail'>";
-                    echo "<i class='fas fa-graduation-cap'></i>";
-                    echo "<strong>Khóa học:</strong> " . htmlspecialchars($row['course_name']);
-                    echo "</p>";
-                    echo "<p class='enrollment-detail'>";
-                    echo "<i class='fas fa-calendar-plus'></i>";
-                    echo "<strong>Ngày ghi danh:</strong> " . date('d/m/Y', strtotime($row['enrollment_date']));
-                    echo "</p>";
-                    echo "<div class='enrollment-detail'>";
-                    echo "<i class='$status_icon'></i>";
-                    echo "<strong>Trạng thái:</strong> ";
-                    echo "<span class='status-badge $status_class'>";
-                    echo "<i class='$status_icon'></i>";
-                    echo ucfirst($row['status']);
-                    echo "</span>";
-                    echo "</div>";
-                    echo "</div>";
+                    // Course info
+                    echo "<div class='course-info'>";
                     
-                    if ($can_manage) {
-                        echo "<div class='enrollment-actions'>";
-                        echo "<a href='edit_enrollments.php?id=" . $row['id'] . "' class='btn btn-edit' title='Sửa ghi danh'>";
-                        echo "<i class='fas fa-edit'></i> Sửa";
-                        echo "</a>";
-                        echo "<a href='../../handle/enrollment_process.php?delete_id=" . $row['id'] . "' ";
-                        echo "class='btn btn-delete' title='Xóa ghi danh' ";
-                        echo "onclick='return confirm(\"Bạn có chắc chắn muốn xóa ghi danh này?\\nHành động này không thể hoàn tác!\")' ";
-                        echo ">";
-                        echo "<i class='fas fa-trash'></i> Xóa";
-                        echo "</a>";
+                    // Enrolled badge for students
+                    if ($is_student && $is_enrolled) {
+                        echo "<span class='enrolled-badge'><i class='fas fa-check-circle'></i> Đã đăng ký</span>";
+                    }
+                    
+                    echo "<h3 class='course-title'>" . htmlspecialchars($row['course_name']) . "</h3>";
+                    
+                    if (!empty($row['description'])) {
+                        echo "<p class='course-description'>" . htmlspecialchars($row['description']) . "</p>";
+                    }
+                    
+                    echo "<div class='course-meta'>";
+                    
+                    if (!empty($row['duration'])) {
+                        echo "<div class='course-detail'>";
+                        echo "<i class='fas fa-clock'></i>";
+                        echo "<span><strong>Thời lượng:</strong> " . htmlspecialchars($row['duration']) . "</span>";
                         echo "</div>";
                     }
                     
+                    if (!empty($row['price'])) {
+                        echo "<div class='course-detail'>";
+                        echo "<i class='fas fa-tag'></i>";
+                        echo "<span><strong>Học phí:</strong> " . number_format($row['price'], 0, ',', '.') . " VNĐ</span>";
+                        echo "</div>";
+                    }
+                    
+                    echo "<div class='course-detail'>";
+                    echo "<i class='fas fa-users'></i>";
+                    echo "<span><strong>Đã đăng ký:</strong> " . $row['enrolled_count'] . " học viên</span>";
                     echo "</div>";
+                    
+                    if (!empty($row['created_at'])) {
+                        echo "<div class='course-detail'>";
+                        echo "<i class='fas fa-calendar-plus'></i>";
+                        echo "<span><strong>Ngày tạo:</strong> " . date('d/m/Y', strtotime($row['created_at'])) . "</span>";
+                        echo "</div>";
+                    }
+                    
+                    echo "</div>"; // End course-meta
+                    echo "</div>"; // End course-info
+                    
+                    // Actions
+                    echo "<div class='course-actions'>";
+                    
+                    // Debug info
+                    if ($is_admin) {
+                        echo "<!-- Admin detected: " . $_SESSION['role'] . " -->";
+                    }
+                    
+                    if ($is_admin) {
+                        // Admin actions
+                        echo "<a href='edit_enrollments.php?id=" . $row['id'] . "' class='btn btn-edit'>";
+                        echo "<i class='fas fa-edit'></i> Sửa";
+                        echo "</a>";
+                        
+                        echo "<button onclick='openAddStudentsModal(" . $row['id'] . ", \"" . htmlspecialchars($row['course_name'], ENT_QUOTES) . "\")' class='btn btn-primary' style='background: #3b82f6; color: white; border: none;'>";
+                        echo "<i class='fas fa-user-plus'></i> Thêm SV";
+                        echo "</button>";
+                        
+                        echo "<a href='../../handle/course_process.php?delete_id=" . $row['id'] . "' ";
+                        echo "class='btn btn-delete' ";
+                        echo "onclick='return confirm(\"Bạn có chắc chắn muốn xóa khóa học này?\\nHành động này không thể hoàn tác!\")' ";
+                        echo "title='Xóa khóa học'>";
+                        echo "<i class='fas fa-trash'></i> Xóa";
+                        echo "</a>";
+                        
+                    } elseif ($is_student) {
+                        echo "<!-- Student detected: " . $_SESSION['role'] . " -->";
+                        // Student actions
+                        if (!$is_enrolled && $row['status'] === 'active') {
+                            echo "<a href='../../handle/enrollment_process.php?course_id=" . $row['id'] . "&student_id=" . $_SESSION['user_id'] . "' ";
+                            echo "class='btn btn-primary' ";
+                            echo "onclick='return confirm(\"Bạn có chắc chắn muốn đăng ký khóa học này?\")' ";
+                            echo ">";
+                            echo "<i class='fas fa-user-plus'></i> Đăng ký";
+                            echo "</a>";
+                        } elseif ($is_enrolled) {
+                            echo "<span class='btn btn-success' style='cursor: default;'>";
+                            echo "<i class='fas fa-check'></i> Đã đăng ký";
+                            echo "</span>";
+                        }
+                    } else {
+                        echo "<!-- Role: " . ($_SESSION['role'] ?? 'undefined') . " -->";
+                    }
+                    
+                    echo "</div>"; // End course-actions
+                    echo "</div>"; // End course-card
                 }
             } else {
-                echo "<div class='no-enrollments'>";
-                echo "<i class='fas fa-clipboard-list'></i><br>";
-                echo (empty($search) ? "Chưa có ghi danh nào trong hệ thống" : "Không tìm thấy ghi danh nào phù hợp");
+                echo "<div class='no-courses'>";
+                echo "<i class='fas fa-graduation-cap'></i><br>";
+                echo (empty($search) ? "Chưa có khóa học nào trong hệ thống" : "Không tìm thấy khóa học nào phù hợp");
                 echo "</div>";
             }
             $stmt->close();
@@ -350,25 +631,18 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
             </div>
             
             <div class="pagination">
-                <!-- First page -->
                 <?php if ($page > 1): ?>
                     <a href="?page=1<?= !empty($search) ? '&search='.urlencode($search) : '' ?>" title="Trang đầu">
                         <i class="fas fa-angle-double-left"></i>
                     </a>
-                <?php else: ?>
-                    <span class="disabled"><i class="fas fa-angle-double-left"></i></span>
-                <?php endif; ?>
-
-                <!-- Previous page -->
-                <?php if ($page > 1): ?>
                     <a href="?page=<?= $page-1 ?><?= !empty($search) ? '&search='.urlencode($search) : '' ?>" title="Trang trước">
                         <i class="fas fa-angle-left"></i>
                     </a>
                 <?php else: ?>
+                    <span class="disabled"><i class="fas fa-angle-double-left"></i></span>
                     <span class="disabled"><i class="fas fa-angle-left"></i></span>
                 <?php endif; ?>
 
-                <!-- Page numbers -->
                 <?php
                 $start_page = max(1, $page - 2);
                 $end_page = min($total_pages, $page + 2);
@@ -390,21 +664,15 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
                 }
                 ?>
 
-                <!-- Next page -->
                 <?php if ($page < $total_pages): ?>
                     <a href="?page=<?= $page+1 ?><?= !empty($search) ? '&search='.urlencode($search) : '' ?>" title="Trang sau">
                         <i class="fas fa-angle-right"></i>
                     </a>
-                <?php else: ?>
-                    <span class="disabled"><i class="fas fa-angle-right"></i></span>
-                <?php endif; ?>
-
-                <!-- Last page -->
-                <?php if ($page < $total_pages): ?>
                     <a href="?page=<?= $total_pages ?><?= !empty($search) ? '&search='.urlencode($search) : '' ?>" title="Trang cuối">
                         <i class="fas fa-angle-double-right"></i>
                     </a>
                 <?php else: ?>
+                    <span class="disabled"><i class="fas fa-angle-right"></i></span>
                     <span class="disabled"><i class="fas fa-angle-double-right"></i></span>
                 <?php endif; ?>
             </div>
@@ -412,6 +680,111 @@ $can_view_details = $is_admin || $is_teacher; // Admin và teacher có thể xem
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Modal thêm sinh viên (chỉ cho admin) -->
+<?php if ($is_admin && !empty($students)): ?>
+<div id="addStudentsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Thêm sinh viên vào khóa học</h3>
+            <button class="close-btn" onclick="closeAddStudentsModal()">&times;</button>
+        </div>
+        <form id="addStudentsForm" action="../../handle/enrollment_process.php" method="POST">
+            <input type="hidden" id="modal_course_id" name="course_id" value="">
+            <input type="hidden" name="action" value="bulk_add">
+            
+            <div class="modal-body">
+                <p><strong>Khóa học:</strong> <span id="modal_course_name"></span></p>
+                <p style="margin-bottom: 20px; color: #6b7280;">Chọn sinh viên để thêm vào khóa học:</p>
+                
+                <div style="margin-bottom: 15px;">
+                    <label>
+                        <input type="checkbox" id="selectAll" onchange="toggleAllStudents(this)">
+                        <strong>Chọn tất cả</strong>
+                    </label>
+                </div>
+                
+                <?php foreach ($students as $student): ?>
+                <div class="student-checkbox">
+                    <input type="checkbox" name="student_ids[]" value="<?= $student['id'] ?>" class="student-checkbox-item">
+                    <div class="student-info">
+                        <div class="student-name"><?= htmlspecialchars($student['full_name']) ?></div>
+                        <div class="student-email"><?= htmlspecialchars($student['email']) ?></div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" onclick="closeAddStudentsModal()">Hủy</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Thêm sinh viên
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
+<script>
+// Modal functions cho admin
+function openAddStudentsModal(courseId, courseName) {
+    document.getElementById('modal_course_id').value = courseId;
+    document.getElementById('modal_course_name').textContent = courseName;
+    document.getElementById('addStudentsModal').style.display = 'block';
+    
+    // Reset checkboxes
+    document.getElementById('selectAll').checked = false;
+    const checkboxes = document.querySelectorAll('.student-checkbox-item');
+    checkboxes.forEach(cb => cb.checked = false);
+}
+
+function closeAddStudentsModal() {
+    document.getElementById('addStudentsModal').style.display = 'none';
+}
+
+function toggleAllStudents(selectAllCheckbox) {
+    const checkboxes = document.querySelectorAll('.student-checkbox-item');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+}
+
+// Success message functions
+function hideSuccessMessage() {
+    const message = document.getElementById('successMessage');
+    if (message) {
+        message.style.animation = 'fadeOut 0.3s ease-out forwards';
+        setTimeout(() => message.remove(), 300);
+    }
+}
+
+// Auto hide success message after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const successMessage = document.getElementById('successMessage');
+    if (successMessage) {
+        setTimeout(hideSuccessMessage, 5000);
+    }
+});
+
+// Đóng modal khi click bên ngoài
+window.onclick = function(event) {
+    const modal = document.getElementById('addStudentsModal');
+    if (event.target === modal) {
+        closeAddStudentsModal();
+    }
+}
+
+// Kiểm tra form trước khi submit
+document.getElementById('addStudentsForm')?.addEventListener('submit', function(e) {
+    const checkedBoxes = document.querySelectorAll('.student-checkbox-item:checked');
+    if (checkedBoxes.length === 0) {
+        e.preventDefault();
+        alert('Vui lòng chọn ít nhất một sinh viên!');
+        return false;
+    }
+    
+    return confirm('Bạn có chắc chắn muốn thêm ' + checkedBoxes.length + ' sinh viên vào khóa học này?');
+});
+</script>
 
 </body>
 </html>
