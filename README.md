@@ -32,9 +32,7 @@ Quản lý lịch học (CRUD) → liên quan bảng schedules
 
 Quản lý ghi danh (CRUD) → liên quan bảng enrollments
 
-Quản lý điểm danh → liên quan bảng attendance
-
-Quản lý thanh toán → liên quan bảng payments
+Quản lý sinh viên (CRUD) → liên quan bảng students
 
 Quản lý báo cáo thống kê → liên quan bảng report_logs (tổng hợp từ nhiều bảng khác: payments, attendance, enrollments)
 
@@ -42,7 +40,7 @@ Quản lý báo cáo thống kê → liên quan bảng report_logs (tổng hợp
 
 Phân quyền người dùng → dựa trên cột role trong bảng users (admin, teacher, student)
 
-Dashboard tổng quan → hiển thị thống kê: số lượng học viên, số khóa học, doanh thu, tỉ lệ điểm danh...
+Dashboard tổng quan → hiển thị thống kê: số lượng học viên, số khóa học, doanh thu, sever...
 
 ## 🔧 2. Các công nghệ được sử dụng
 <div align="center">
