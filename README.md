@@ -77,10 +77,20 @@ Dashboard tổng quan → hiển thị thống kê: số lượng học viên, s
 - **MySQL Workbench** (để quản lý database)
 ## 3.2 Sử dụng hệ thống
  <p align="center">
-        <img src="images/dash1.jpg" />
-        <img src="images/dash2.jpg" />
-        <img src="images/dash3.jpg" />
-        <img src="images/dash4.jpg" />
+###Dashboard      
+<img src="images/dash.jpg" />
+### Trang xem danh sách sinh viên
+<img src="images/student.png" />
+### Trang xem danh sách giảng viên
+<img src="images/giangvien.png" />
+### Trang xem khóa học
+<img src="images/khoahoc.png" />
+### Trang xem lịch học
+<img src="images/lichhoc.png" />
+### Trang xem đăng kí khóa học
+<img src="images/dangki.png" />
+### Trang xem điểm
+<img src="images/diem.png" />
      
     </p>
 
